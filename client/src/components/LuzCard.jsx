@@ -1,26 +1,25 @@
-// LuzCard.jsx
 import React, { useState, useContext, useEffect } from "react";
 import { StyleSheet, View, TextInput } from "react-native";
 import { Card, IconButton, Text, Switch, ProgressBar } from "react-native-paper";
 import { estadoDevicesGlobal } from "../context/contexData";
 
-export default function LuzCard({ luz, recargarLuces }) {
+export default function LuzCard(props) {
   const api = process.env.EXPO_PUBLIC_API_URL;
 
   // ----------------------------- Estados locales -----------------------------
-  const [nombre, setNombre] = useState(luz.nombre || "");
-  const [intensidad, setIntensidad] = useState(luz.intensidad || 0);
+  const [nombre, setNombre] = useState(props.luz.nombre || "");
+  const [intensidad, setIntensidad] = useState(props.luz.intensidad || 0);
 
   const [modoEditarNombre, setModoEditarNombre] = useState(false);
   const [nombreTemp, setNombreTemp] = useState(nombre);
 
   // ----------------------------- Contexto global -----------------------------
   const { cambiarEstadoLuz, obtenerEstadoLuz } = useContext(estadoDevicesGlobal);
-  const estado = obtenerEstadoLuz(luz.id); // Obtener estado individual de la luz
+  const estado = obtenerEstadoLuz(props.luz.id); // Obtener estado individual de la luz
 
   // ----------------------------- useEffect de monitoreo -----------------------------
   useEffect(() => {
-    console.log(`Luz ID ${luz.id} - nombre: ${nombre} - Estado: ${estado ? "Encendida" : "Apagada"} - Intensidad: ${intensidad}%`);
+    console.log(`Luz ID ${props.luz.id} - nombre: ${nombre} - Estado: ${estado ? "Encendida" : "Apagada"} - Intensidad: ${intensidad}%`);
   }, [estado, nombre, intensidad]);
 
   // ----------------------------- Funciones de API -----------------------------
@@ -29,7 +28,7 @@ export default function LuzCard({ luz, recargarLuces }) {
     myHeaders.append("Content-Type", "application/json");
 
     const raw = JSON.stringify({
-      id: luz.id,
+      id: props.luz.id,
       nombre: campo === "nombre" ? valor : nombre,
       estado: campo === "estado" ? valor : estado ? "encendida" : "apagada",
       intensidad: campo === "intensidad" ? valor : intensidad,
@@ -46,7 +45,7 @@ export default function LuzCard({ luz, recargarLuces }) {
       const response = await fetch(`${api}/api/luces/actualizar`, requestOptions);
       const resultado = await response.json();
       console.log(`Campo ${campo} actualizado:`, resultado);
-      recargarLuces();
+      props.recargarLuces();
     } catch (error) {
       console.error(`Error al actualizar ${campo}:`, error);
     }
@@ -56,7 +55,7 @@ export default function LuzCard({ luz, recargarLuces }) {
     const myHeaders = new Headers();
     myHeaders.append("Content-Type", "application/json");
 
-    const raw = JSON.stringify({ id: luz.id });
+    const raw = JSON.stringify({ id: props.luz.id });
 
     const requestOptions = {
       method: "POST",
@@ -69,7 +68,7 @@ export default function LuzCard({ luz, recargarLuces }) {
       const response = await fetch(`${api}/api/luces/eliminar`, requestOptions);
       const resultado = await response.json();
       console.log(`Luz eliminada: ${nombre}`, resultado);
-      recargarLuces();
+      props.recargarLuces();
     } catch (error) {
       console.error("Error al eliminar luz:", error);
     }
@@ -85,7 +84,7 @@ export default function LuzCard({ luz, recargarLuces }) {
   };
 
   const actualizarEstado = () => {
-    cambiarEstadoLuz(luz.id);
+    cambiarEstadoLuz(props.luz.id);
     actualizarCampo("estado", !estado ? "encendida" : "apagada");
   };
 

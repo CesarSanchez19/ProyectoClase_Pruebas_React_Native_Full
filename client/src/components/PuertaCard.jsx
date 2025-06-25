@@ -4,20 +4,20 @@ import { StyleSheet, View, TextInput } from "react-native";
 import { Card, IconButton, Text, Switch } from "react-native-paper";
 import { estadoDevicesGlobal } from "../context/contexData";
 
-export default function PuertaCard({ puerta, recargarPuertas }) {
+export default function PuertaCard(props) {
   const api = process.env.EXPO_PUBLIC_API_URL;
 
-  const [nombre, setNombre] = useState(puerta.nombre || "");
-  const [registroEntrada, setRegistroEntrada] = useState(puerta.registro_entrada || 0);
+  const [nombre, setNombre] = useState(props.puerta.nombre || "");
+  const [registroEntrada, setRegistroEntrada] = useState(props.puerta.registro_entrada || 0);
 
   const [modoEditarNombre, setModoEditarNombre] = useState(false);
   const [nombreTemp, setNombreTemp] = useState(nombre);
 
   const { cambiarEstadoPuerta, obtenerEstadoPuerta } = useContext(estadoDevicesGlobal);
-  const estado = obtenerEstadoPuerta(puerta.id);
+  const estado = obtenerEstadoPuerta(props.puerta.id);
 
   useEffect(() => {
-    console.log(`Puerta ID ${puerta.id} - nombre: ${nombre} - Estado: ${estado ? "abierta" : "cerrada"} - Entradas: ${registroEntrada}`);
+    console.log(`Puerta ID ${props.puerta.id} - nombre: ${nombre} - Estado: ${estado ? "abierta" : "cerrada"} - Entradas: ${registroEntrada}`);
   }, [estado, nombre, registroEntrada]);
 
   const actualizarCampo = async (campo, valor, estadoOverride = null) => {
@@ -27,13 +27,11 @@ export default function PuertaCard({ puerta, recargarPuertas }) {
     const estadoParaEnviar = estadoOverride !== null ? estadoOverride : (estado ? "abierta" : "cerrada");
 
     const dataToSend = {
-      id: puerta.id,
+      id: props.puerta.id,
       nombre: campo === "nombre" ? valor : nombre,
       estado: campo === "estado" ? valor : estadoParaEnviar,
       registro_entrada: campo === "registro_entrada" ? valor : registroEntrada,
     };
-
-    console.log(`ENVIANDO A API - Campo: ${campo}, Valor: ${valor}, Datos completos:`, dataToSend);
 
     const raw = JSON.stringify(dataToSend);
 
@@ -48,23 +46,21 @@ export default function PuertaCard({ puerta, recargarPuertas }) {
       const response = await fetch(`${api}/api/puertas/actualizar`, requestOptions);
       const resultado = await response.json();
       console.log(`RESPUESTA API - Campo ${campo} actualizado:`, resultado);
-      
-      // Solo recargar puertas si es actualización de nombre
-      // NO recargar para estado ni registro_entrada
+
       if (campo === "nombre") {
-        recargarPuertas();
+        props.recargarPuertas();
       }
     } catch (error) {
       console.error(` ERROR API - al actualizar ${campo}:`, error);
-      throw error; // Propagar el error para manejarlo en actualizarEstado
+      throw error;
     }
   };
-  
+
   const eliminarPuerta = async () => {
     const myHeaders = new Headers();
     myHeaders.append("Content-Type", "application/json");
 
-    const raw = JSON.stringify({ id: puerta.id });
+    const raw = JSON.stringify({ id: props.puerta.id });
 
     const requestOptions = {
       method: "POST",
@@ -77,7 +73,7 @@ export default function PuertaCard({ puerta, recargarPuertas }) {
       const response = await fetch(`${api}/api/puertas/eliminar`, requestOptions);
       const resultado = await response.json();
       console.log(`Puerta eliminada: ${nombre}`, resultado);
-      recargarPuertas();
+      props.recargarPuertas();
     } catch (error) {
       console.error("Error al eliminar puerta:", error);
     }
@@ -98,50 +94,40 @@ export default function PuertaCard({ puerta, recargarPuertas }) {
         redirect: "follow",
       });
       const data = await response.json();
-      const puertaActual = data.body.find(p => p.id === puerta.id);
-      console.log(`VERIFICACIÓN BD - Puerta ${puerta.id}: Estado en BD = "${puertaActual?.estado}", Estado en contexto = "${estado ? 'abierta' : 'cerrada'}"`);
+      const puertaActual = data.body.find((p) => p.id === props.puerta.id);
+      console.log(`VERIFICACIÓN BD - Puerta ${props.puerta.id}: Estado en BD = "${puertaActual?.estado}", Estado en contexto = "${estado ? 'abierta' : 'cerrada'}"`);
     } catch (error) {
       console.error("Error al verificar estado en BD:", error);
     }
   };
 
   const actualizarEstado = async () => {
-    const estadoActual = obtenerEstadoPuerta(puerta.id);
+    const estadoActual = obtenerEstadoPuerta(props.puerta.id);
     const nuevoEstadoBooleano = !estadoActual;
     const nuevoEstadoString = nuevoEstadoBooleano ? "abierta" : "cerrada";
-    
-    console.log(`ANTES - Estado actual: ${estadoActual ? 'abierta' : 'cerrada'}, Nuevo estado: ${nuevoEstadoString}`);
-    
-    try {
-      // Primero cambiar en contexto global
-      cambiarEstadoPuerta(puerta.id);
 
-      // Actualizar en base de datos
+    console.log(`ANTES - Estado actual: ${estadoActual ? "abierta" : "cerrada"}, Nuevo estado: ${nuevoEstadoString}`);
+
+    try {
+      cambiarEstadoPuerta(props.puerta.id);
       await actualizarCampo("estado", nuevoEstadoString);
-      
-      // Verificar que se guardó correctamente
       setTimeout(() => verificarEstadoEnBD(), 1000);
 
-      // Si se abrió, aumentar contador
       if (nuevoEstadoBooleano) {
         const nuevoRegistro = registroEntrada + 1;
         setRegistroEntrada(nuevoRegistro);
-        // Pasar el estado correcto como override para que no se sobrescriba
         await actualizarCampo("registro_entrada", nuevoRegistro, nuevoEstadoString);
       }
     } catch (error) {
-      // Si hay error, revertir el cambio en el contexto
       console.error("Error al actualizar estado:", error);
-      cambiarEstadoPuerta(puerta.id); // Revertir
+      cambiarEstadoPuerta(props.puerta.id);
     }
   };
 
   return (
     <Card style={[styles.card, estado && styles.cardActive]}>
       <View style={[styles.cardGlow, estado && styles.cardGlowActive]} />
-      
       <Card.Content style={styles.cardContent}>
-        {/* Header con estado visual */}
         <View style={styles.headerContainer}>
           <View style={styles.statusIndicator}>
             <View style={[styles.statusDot, estado && styles.statusDotActive]} />
@@ -149,7 +135,6 @@ export default function PuertaCard({ puerta, recargarPuertas }) {
               {estado ? "🚪 Abierta" : "🔒 Cerrada"}
             </Text>
           </View>
-          
           <Switch
             value={estado}
             onValueChange={actualizarEstado}
@@ -159,7 +144,6 @@ export default function PuertaCard({ puerta, recargarPuertas }) {
           />
         </View>
 
-        {/* Nombre de la puerta */}
         <View style={styles.nombreSection}>
           {modoEditarNombre ? (
             <View style={styles.nombreEditContainer}>
@@ -172,19 +156,19 @@ export default function PuertaCard({ puerta, recargarPuertas }) {
                 autoFocus
               />
               <View style={styles.accionesEditar}>
-                <IconButton 
-                  icon="check" 
-                  iconColor="#8B5CF6" 
+                <IconButton
+                  icon="check"
+                  iconColor="#8B5CF6"
                   size={20}
                   style={styles.editButton}
-                  onPress={guardarNombre} 
+                  onPress={guardarNombre}
                 />
-                <IconButton 
-                  icon="close" 
-                  iconColor="#EF4444" 
+                <IconButton
+                  icon="close"
+                  iconColor="#EF4444"
                   size={20}
                   style={styles.editButton}
-                  onPress={() => setModoEditarNombre(false)} 
+                  onPress={() => setModoEditarNombre(false)}
                 />
               </View>
             </View>
@@ -196,18 +180,17 @@ export default function PuertaCard({ puerta, recargarPuertas }) {
               >
                 {nombre || "🚪 Sin nombre"}
               </Text>
-              <IconButton 
-                icon="delete" 
-                iconColor="#EF4444" 
+              <IconButton
+                icon="delete"
+                iconColor="#EF4444"
                 size={20}
                 style={styles.deleteButton}
-                onPress={eliminarPuerta} 
+                onPress={eliminarPuerta}
               />
             </View>
           )}
         </View>
 
-        {/* Registro de entradas */}
         <View style={styles.registroSection}>
           <View style={styles.registroHeader}>
             <Text style={styles.registroLabel}>📊 Entradas registradas</Text>
